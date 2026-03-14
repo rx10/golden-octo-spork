@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, KeyboardEvent } from "react";
+import { useState, useEffect, useRef, KeyboardEvent } from "react";
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
@@ -105,18 +105,17 @@ function JobCard({ job }: { job: Job }) {
 
 export default function JobBoard() {
   const [jobs, setJobs]         = useState<Job[]>([]);
-  const [loading, setLoading]   = useState<boolean>(false);
-  const [scraping, setScraping] = useState<boolean>(false);
+  const [busy, setBusy]         = useState<boolean>(false);
+  const [busyMsg, setBusyMsg]   = useState<string>("");
   const [role, setRole]         = useState<string>("");
   const [location, setLocation] = useState<string>("");
   const [sort, setSort]         = useState<SortOption>("recent");
   const [error, setError]       = useState<string | null>(null);
+  const pollRef                 = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchJobs = async (): Promise<void> => {
-    setLoading(true);
-    setError(null);
     try {
       const params = new URLSearchParams();
       if (role.trim())     params.set("title",    role.trim());
@@ -128,14 +127,14 @@ export default function JobBoard() {
       setJobs(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setLoading(false);
     }
   };
 
-  const triggerScrape = async (): Promise<void> => {
-    setScraping(true);
+  const handleSearch = async (): Promise<void> => {
+    setBusy(true);
+    setBusyMsg("Scraping fresh jobs… this may take a minute");
     setError(null);
+
     try {
       const res = await fetch(`${API_BASE}/api/scrape`, {
         method: "POST",
@@ -147,38 +146,43 @@ export default function JobBoard() {
       });
       if (!res.ok) throw new Error(`Scrape failed: ${res.status}`);
 
-      // Poll for completion then refresh
-      pollScrapeStatus();
+      // Poll until scrape finishes
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`${API_BASE}/api/scrape/status`);
+          if (!res.ok) return;
+          const status = await res.json();
+
+          if (!status.running) {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+
+            if (status.last_result?.error) {
+              setError(`Scrape error: ${status.last_result.error}`);
+            }
+
+            setBusyMsg("Loading results…");
+            await fetchJobs();
+            setBusy(false);
+          }
+        } catch {
+          // ignore polling errors
+        }
+      }, 3000);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
-      setScraping(false);
+      setBusy(false);
     }
   };
 
-  const pollScrapeStatus = (): void => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/scrape/status`);
-        if (!res.ok) return;
-        const status = await res.json();
-
-        if (!status.running) {
-          clearInterval(interval);
-          setScraping(false);
-
-          if (status.last_result?.error) {
-            setError(`Scrape error: ${status.last_result.error}`);
-          }
-
-          await fetchJobs();
-        }
-      } catch {
-        // ignore polling errors
-      }
-    }, 3000);
-  };
-
-  useEffect(() => { fetchJobs(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Load existing jobs on mount (no scrape)
+  useEffect(() => {
+    setBusy(true);
+    setBusyMsg("Loading…");
+    fetchJobs().finally(() => setBusy(false));
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sorted: Job[] = [...jobs].sort((a, b) =>
     sort === "salary"
@@ -187,21 +191,44 @@ export default function JobBoard() {
   );
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === "Enter") fetchJobs();
+    if (e.key === "Enter") handleSearch();
   };
 
   const clearSearch = (): void => {
     setRole("");
     setLocation("");
-    setJobs([]);
-    setTimeout(fetchJobs, 0);
+    setBusy(true);
+    setBusyMsg("Loading…");
+    fetchJobs().finally(() => setBusy(false));
   };
 
   return (
     <div className="container py-4">
 
+      {/* overlay */}
+      {busy && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(255,255,255,0.8)",
+            zIndex: 1050,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+          }}
+        >
+          <div className="spinner-border text-primary" style={{ width: 48, height: 48 }} role="status">
+            <span className="visually-hidden">Loading…</span>
+          </div>
+          <span className="fw-medium text-muted">{busyMsg}</span>
+        </div>
+      )}
+
       <div className="mb-4">
-        <h1 className="fw-semibold fs-4 mb-1">Job board</h1>
+        <h1 className="fw-semibold fs-4 mb-1">Job search</h1>
         <p className="text-muted small mb-0">Search across LinkedIn and Dice</p>
       </div>
 
@@ -234,22 +261,17 @@ export default function JobBoard() {
             <div className="col-6 col-md-2">
               <button
                 className="btn btn-dark w-100"
-                onClick={fetchJobs}
-                disabled={loading}
+                onClick={handleSearch}
+                disabled={busy}
               >
-                {loading ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm me-1" aria-hidden="true" />
-                    Searching…
-                  </>
-                ) : "Search"}
+                Search
               </button>
             </div>
             <div className="col-6 col-md-1">
               <button
                 className="btn btn-outline-secondary w-100"
                 onClick={clearSearch}
-                disabled={loading}
+                disabled={busy}
               >
                 Clear
               </button>
@@ -260,23 +282,9 @@ export default function JobBoard() {
 
       {/* toolbar */}
       <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <div className="d-flex align-items-center gap-3">
-          <span className="text-muted small">
-            {loading ? "Loading…" : `${sorted.length} job${sorted.length !== 1 ? "s" : ""} found`}
-          </span>
-          <button
-            className="btn btn-outline-secondary btn-sm"
-            onClick={triggerScrape}
-            disabled={scraping || loading}
-          >
-            {scraping ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-1" aria-hidden="true" />
-                Scraping…
-              </>
-            ) : "Refresh listings"}
-          </button>
-        </div>
+        <span className="text-muted small">
+          {`${sorted.length} job${sorted.length !== 1 ? "s" : ""} found`}
+        </span>
         <select
           className="form-select form-select-sm w-auto"
           value={sort}
@@ -294,9 +302,9 @@ export default function JobBoard() {
       )}
 
       {/* empty state */}
-      {!loading && !error && sorted.length === 0 && (
+      {!busy && !error && sorted.length === 0 && (
         <p className="text-muted small">
-          No jobs found. Try different keywords or click &quot;Refresh listings&quot;.
+          No jobs found. Try different keywords and search again.
         </p>
       )}
 
