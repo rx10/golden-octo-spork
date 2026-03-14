@@ -1,6 +1,6 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+cat > next.config.mjs << 'EOF'
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   async rewrites() {
     return [
       {
@@ -12,3 +12,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+EOF
