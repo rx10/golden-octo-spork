@@ -163,7 +163,13 @@ export default function JobBoard() {
             }
 
             setBusyMsg("Loading results…");
-            await fetchJobs();
+            // Fetch ALL jobs — DB only has this scrape's results,
+            // no need to filter (would hide Dice Remote jobs)
+            const jobsRes = await fetch(`${API_BASE}/api/jobs`);
+            if (jobsRes.ok) {
+              const data: Job[] = await jobsRes.json();
+              setJobs(data);
+            }
             setBusy(false);
           }
         } catch {
