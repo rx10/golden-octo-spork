@@ -115,11 +115,13 @@ export default function JobBoard() {
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-  const fetchJobs = async (): Promise<void> => {
+  const fetchJobs = async (overrideRole?: string, overrideLocation?: string): Promise<void> => {
     try {
       const params = new URLSearchParams();
-      if (role.trim())     params.set("title",    role.trim());
-      if (location.trim()) params.set("location", location.trim());
+      const r = overrideRole     ?? role;
+      const l = overrideLocation ?? location;
+      if (r.trim())  params.set("title",    r.trim());
+      if (l.trim())  params.set("location", l.trim());
 
       const res = await fetch(`${API_BASE}/api/jobs?${params.toString()}`);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
@@ -199,7 +201,7 @@ export default function JobBoard() {
     setLocation("");
     setBusy(true);
     setBusyMsg("Loading…");
-    fetchJobs().finally(() => setBusy(false));
+    fetchJobs("", "").finally(() => setBusy(false));
   };
 
   return (
@@ -228,7 +230,7 @@ export default function JobBoard() {
       )}
 
       <div className="mb-4">
-        <h1 className="fw-semibold fs-4 mb-1">Job search</h1>
+        <h1 className="fw-semibold fs-4 mb-1">Job board</h1>
         <p className="text-muted small mb-0">Search across LinkedIn and Dice</p>
       </div>
 
