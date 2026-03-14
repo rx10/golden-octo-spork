@@ -115,13 +115,11 @@ export default function JobBoard() {
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-  const fetchJobs = async (overrideRole?: string, overrideLocation?: string): Promise<void> => {
+  const fetchJobs = async (): Promise<void> => {
     try {
       const params = new URLSearchParams();
-      const r = overrideRole     ?? role;
-      const l = overrideLocation ?? location;
-      if (r.trim())  params.set("title",    r.trim());
-      if (l.trim())  params.set("location", l.trim());
+      if (role.trim())     params.set("title",    role.trim());
+      if (location.trim()) params.set("location", location.trim());
 
       const res = await fetch(`${API_BASE}/api/jobs?${params.toString()}`);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
@@ -136,6 +134,7 @@ export default function JobBoard() {
     setBusy(true);
     setBusyMsg("Scraping fresh jobs… this may take a minute");
     setError(null);
+    setJobs([]);  // clear old results immediately
 
     try {
       const res = await fetch(`${API_BASE}/api/scrape`, {
@@ -196,14 +195,6 @@ export default function JobBoard() {
     if (e.key === "Enter") handleSearch();
   };
 
-  const clearSearch = (): void => {
-    setRole("");
-    setLocation("");
-    setBusy(true);
-    setBusyMsg("Loading…");
-    fetchJobs("", "").finally(() => setBusy(false));
-  };
-
   return (
     <div className="container py-4">
 
@@ -260,22 +251,13 @@ export default function JobBoard() {
                 onKeyDown={handleKeyDown}
               />
             </div>
-            <div className="col-6 col-md-2">
+            <div className="col-12 col-md-3">
               <button
                 className="btn btn-dark w-100"
                 onClick={handleSearch}
                 disabled={busy}
               >
                 Search
-              </button>
-            </div>
-            <div className="col-6 col-md-1">
-              <button
-                className="btn btn-outline-secondary w-100"
-                onClick={clearSearch}
-                disabled={busy}
-              >
-                Clear
               </button>
             </div>
           </div>
