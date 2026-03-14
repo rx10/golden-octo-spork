@@ -112,6 +112,8 @@ export default function JobBoard() {
   const [sort, setSort]         = useState<SortOption>("recent");
   const [error, setError]       = useState<string | null>(null);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+
   const fetchJobs = async (): Promise<void> => {
     setLoading(true);
     setError(null);
@@ -120,7 +122,7 @@ export default function JobBoard() {
       if (role.trim())     params.set("title",    role.trim());
       if (location.trim()) params.set("location", location.trim());
 
-      const res = await fetch(`/api/jobs?${params.toString()}`);
+      const res = await fetch(`${API_BASE}/api/jobs?${params.toString()}`);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data: Job[] = await res.json();
       setJobs(data);
@@ -135,14 +137,45 @@ export default function JobBoard() {
     setScraping(true);
     setError(null);
     try {
-      const res = await fetch("/api/scrape", { method: "POST" });
+      const res = await fetch(`${API_BASE}/api/scrape`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role:     role.trim()     || "Software Developer",
+          location: location.trim() || "California",
+        }),
+      });
       if (!res.ok) throw new Error(`Scrape failed: ${res.status}`);
-      await fetchJobs();
+
+      // Poll for completion then refresh
+      pollScrapeStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
       setScraping(false);
     }
+  };
+
+  const pollScrapeStatus = (): void => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/scrape/status`);
+        if (!res.ok) return;
+        const status = await res.json();
+
+        if (!status.running) {
+          clearInterval(interval);
+          setScraping(false);
+
+          if (status.last_result?.error) {
+            setError(`Scrape error: ${status.last_result.error}`);
+          }
+
+          await fetchJobs();
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 3000);
   };
 
   useEffect(() => { fetchJobs(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
