@@ -277,8 +277,8 @@ export default function JobBoard() {
       )}
 
       <div className="mb-4">
-        <h1 className="fw-semibold fs-4 mb-1">Job board</h1>
-        <p className="text-muted small mb-0">Search across LinkedIn, Dice, Indeed, ZipRecruiter & RemoteOK</p>
+        <h1 className="fw-semibold fs-4 mb-1">Socratic</h1>
+        <p className="text-muted small mb-0">Job Search across LinkedIn, Dice, Indeed, ZipRecruiter & RemoteOK</p>
       </div>
 
       {/* Search bar */}
