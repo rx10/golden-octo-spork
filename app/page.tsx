@@ -183,7 +183,7 @@ export default function JobBoard() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/jobs`);
+        const res = await fetch(`${API_BASE}/api/jobs?limit=500`);
         if (res.ok) mergeJobs(await res.json());
       } catch { /* ignore */ }
       finally { setInitialLoading(false); }
@@ -218,7 +218,7 @@ export default function JobBoard() {
       pollRef.current = setInterval(async () => {
         try {
           // Fetch whatever is in DB right now (incremental)
-          const jobsRes = await fetch(`${API_BASE}/api/jobs`);
+          const jobsRes = await fetch(`${API_BASE}/api/jobs?limit=500`);
           if (jobsRes.ok) mergeJobs(await jobsRes.json());
 
           // Check if scrape is still running
@@ -232,7 +232,7 @@ export default function JobBoard() {
               setError(`Scrape error: ${status.last_result.error}`);
             }
             // Final fetch to make sure we have everything
-            const finalRes = await fetch(`${API_BASE}/api/jobs`);
+            const finalRes = await fetch(`${API_BASE}/api/jobs?limit=500`);
             if (finalRes.ok) mergeJobs(await finalRes.json());
             setScraping(false);
           }
