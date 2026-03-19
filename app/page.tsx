@@ -13,7 +13,7 @@ interface Job {
   description: string | null;
   salary:      string | null;
   url:         string;
-  source:      "LinkedIn" | "Dice" | "Indeed" | "ZipRecruiter" | "RemoteOK" | string;
+  source:      "LinkedIn" | "Dice" | "Indeed" | "ZipRecruiter" | "RemoteOK" | "GlassDoor" | string;
   scraped_at:  string;
 }
 
@@ -278,7 +278,7 @@ export default function JobBoard() {
 
       <div className="mb-4">
         <h1 className="fw-semibold fs-4 mb-1">Socratic</h1>
-        <p className="text-muted small mb-0">Job Search across LinkedIn, Dice, Indeed, ZipRecruiter & RemoteOK</p>
+        <p className="text-muted small mb-0">Job Search across LinkedIn, Dice, Indeed, ZipRecruiter, RemoteOK and GlassDoor/p>
       </div>
 
       {/* Search bar */}
