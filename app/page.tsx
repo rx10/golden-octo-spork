@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, KeyboardEvent } from "react";
+import { useState, useEffect, useRef, KeyboardEvent, useCallback } from "react";
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
@@ -13,7 +13,7 @@ interface Job {
   description: string | null;
   salary:      string | null;
   url:         string;
-  source:      "LinkedIn" | "Dice" | string;
+  source:      "LinkedIn" | "Dice" | "Indeed" | "ZipRecruiter" | "RemoteOK" | string;
   scraped_at:  string;
 }
 
@@ -44,18 +44,40 @@ function parseSalaryMin(salary: string | null): number {
   return match ? parseInt(match[0].replace(/,/g, ""), 10) : 0;
 }
 
+const HYBRID_TERMS = ["hybrid", "on-site", "onsite", "in-office", "in office", "in-person", "in person"];
+
+function isHybrid(location: string): boolean {
+  const loc = location.toLowerCase();
+  return HYBRID_TERMS.some(t => loc.includes(t));
+}
+
 function locationMatches(jobLocation: string, searchedLocation: string): boolean {
   if (!searchedLocation.trim()) return true;
   return jobLocation.toLowerCase().includes(searchedLocation.trim().toLowerCase());
 }
 
+/** Returns the display label for a job's location badge. */
+function displayLocation(job: Job, searchedLocation: string): string {
+  if (!searchedLocation.trim()) return job.location;
+  if (locationMatches(job.location, searchedLocation)) return job.location;
+  // job came from remote pass — show "Remote" not its raw location
+  return "Remote";
+}
+
+const SOURCE_COLORS: Record<string, string> = {
+  LinkedIn:     "text-bg-primary",
+  Dice:         "text-bg-info",
+  Indeed:       "text-bg-warning",
+  ZipRecruiter: "text-bg-danger",
+  RemoteOK:     "text-bg-success",
+};
+
 // ── job card ──────────────────────────────────────────────────────────────────
 
 function JobCard({ job, searchedLocation }: { job: Job; searchedLocation: string }) {
-  const days = daysSince(job.posted_date);
-  const displayLocation = locationMatches(job.location, searchedLocation)
-    ? job.location
-    : "Remote";
+  const days    = daysSince(job.posted_date);
+  const locLabel = displayLocation(job, searchedLocation);
+  const badgeColor = SOURCE_COLORS[job.source] ?? "text-bg-secondary";
 
   return (
     <div className="card border shadow-sm h-100">
@@ -73,18 +95,15 @@ function JobCard({ job, searchedLocation }: { job: Job; searchedLocation: string
 
         <div className="d-flex flex-wrap gap-1">
           <span className="badge text-bg-secondary fw-normal">
-            <svg
-              width="11" height="11" viewBox="0 0 16 16"
-              fill="currentColor" className="me-1" aria-hidden="true"
-            >
-              <path d="M8 1a5 5 0 0 0-5 5c0 3.5 5 9 5 9s5-5.5 5-9a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" className="me-1" aria-hidden="true">
+              <path d="M8 1a5 5 0 0 0-5 5c0 3.5 5 9 5 9s5-5.5 5-9a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
             </svg>
-            {displayLocation}
+            {locLabel}
           </span>
           {job.salary && (
             <span className="badge text-bg-success fw-normal">{job.salary}</span>
           )}
-          <span className="badge text-bg-primary fw-normal">{job.source}</span>
+          <span className={`badge fw-normal ${badgeColor}`}>{job.source}</span>
         </div>
 
         {job.description && (
@@ -109,40 +128,76 @@ function JobCard({ job, searchedLocation }: { job: Job; searchedLocation: string
   );
 }
 
+// ── scrape progress bar ───────────────────────────────────────────────────────
+
+function ProgressBar({ count, scraping }: { count: number; scraping: boolean }) {
+  if (!scraping && count === 0) return null;
+  return (
+    <div className="d-flex align-items-center gap-2 mb-3">
+      {scraping && (
+        <div className="spinner-grow spinner-grow-sm text-primary flex-shrink-0" role="status">
+          <span className="visually-hidden">Scraping…</span>
+        </div>
+      )}
+      <span className="text-muted small">
+        {scraping
+          ? `Found ${count} job${count !== 1 ? "s" : ""} so far — more loading…`
+          : `${count} job${count !== 1 ? "s" : ""} found`}
+      </span>
+    </div>
+  );
+}
+
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function JobBoard() {
-  const [jobs, setJobs]               = useState<Job[]>([]);
-  const [busy, setBusy]               = useState<boolean>(false);
-  const [busyMsg, setBusyMsg]         = useState<string>("");
-  const [role, setRole]               = useState<string>("");
-  const [location, setLocation]       = useState<string>("");
+  const [jobs, setJobs]                     = useState<Job[]>([]);
+  const [scraping, setScraping]             = useState<boolean>(false);
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [role, setRole]                     = useState<string>("");
+  const [location, setLocation]             = useState<string>("");
   const [searchedLocation, setSearchedLocation] = useState<string>("");
-  const [sort, setSort]               = useState<SortOption>("recent");
-  const [error, setError]             = useState<string | null>(null);
-  const pollRef                       = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [sort, setSort]                     = useState<SortOption>("recent");
+  const [error, setError]                   = useState<string | null>(null);
+  const pollRef                             = useRef<ReturnType<typeof setInterval> | null>(null);
+  const seenIdsRef                          = useRef<Set<string>>(new Set());
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
-  const fetchJobs = async (): Promise<void> => {
-    try {
-      const params = new URLSearchParams();
-      if (role.trim())     params.set("title",    role.trim());
-      if (location.trim()) params.set("location", location.trim());
+  /** Merge new jobs into state, deduplicating by id. */
+  const mergeJobs = useCallback((incoming: Job[]) => {
+    const fresh = incoming.filter(j => !seenIdsRef.current.has(j.id));
+    if (fresh.length === 0) return;
+    fresh.forEach(j => seenIdsRef.current.add(j.id));
+    setJobs(prev => [...prev, ...fresh]);
+  }, []);
 
-      const res = await fetch(`${API_BASE}/api/jobs?${params.toString()}`);
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
-      const data: Job[] = await res.json();
-      setJobs(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
     }
   };
 
+  // Initial load — show whatever is already in DB
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/jobs`);
+        if (res.ok) mergeJobs(await res.json());
+      } catch { /* ignore */ }
+      finally { setInitialLoading(false); }
+    })();
+    return stopPolling;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSearch = async (): Promise<void> => {
-    setBusy(true);
-    setBusyMsg("Scraping fresh jobs… this may take a minute");
+    stopPolling();
+    setScraping(true);
     setError(null);
+
+    // Clear previous results
+    seenIdsRef.current = new Set();
     setJobs([]);
 
     const submittedLocation = location.trim() || "California";
@@ -153,53 +208,42 @@ export default function JobBoard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          role:     role.trim()     || "Software Developer",
+          role:     role.trim() || "Software Developer",
           location: submittedLocation,
         }),
       });
       if (!res.ok) throw new Error(`Scrape failed: ${res.status}`);
 
-      // Poll until scrape finishes
+      // Poll every 2 s — fetch partial results each tick for progressive loading
       pollRef.current = setInterval(async () => {
         try {
-          const res = await fetch(`${API_BASE}/api/scrape/status`);
-          if (!res.ok) return;
-          const status = await res.json();
+          // Fetch whatever is in DB right now (incremental)
+          const jobsRes = await fetch(`${API_BASE}/api/jobs`);
+          if (jobsRes.ok) mergeJobs(await jobsRes.json());
+
+          // Check if scrape is still running
+          const statusRes = await fetch(`${API_BASE}/api/scrape/status`);
+          if (!statusRes.ok) return;
+          const status = await statusRes.json();
 
           if (!status.running) {
-            if (pollRef.current) clearInterval(pollRef.current);
-            pollRef.current = null;
-
+            stopPolling();
             if (status.last_result?.error) {
               setError(`Scrape error: ${status.last_result.error}`);
             }
-
-            setBusyMsg("Loading results…");
-            const jobsRes = await fetch(`${API_BASE}/api/jobs`);
-            if (jobsRes.ok) {
-              const data: Job[] = await jobsRes.json();
-              setJobs(data);
-            }
-            setBusy(false);
+            // Final fetch to make sure we have everything
+            const finalRes = await fetch(`${API_BASE}/api/jobs`);
+            if (finalRes.ok) mergeJobs(await finalRes.json());
+            setScraping(false);
           }
-        } catch {
-          // ignore polling errors
-        }
-      }, 3000);
+        } catch { /* ignore transient poll errors */ }
+      }, 2000);
 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
-      setBusy(false);
+      setScraping(false);
     }
   };
-
-  // Load existing jobs on mount (no scrape)
-  useEffect(() => {
-    setBusy(true);
-    setBusyMsg("Loading…");
-    fetchJobs().finally(() => setBusy(false));
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sorted: Job[] = [...jobs].sort((a, b) =>
     sort === "salary"
@@ -211,37 +255,33 @@ export default function JobBoard() {
     if (e.key === "Enter") handleSearch();
   };
 
+  const busy = initialLoading || scraping;
+
   return (
     <div className="container py-4">
 
-      {/* overlay */}
-      {busy && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(255,255,255,0.8)",
-            zIndex: 1050,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 12,
-          }}
-        >
+      {/* Full-screen overlay — only on very first load */}
+      {initialLoading && (
+        <div style={{
+          position: "fixed", inset: 0,
+          backgroundColor: "rgba(255,255,255,0.85)",
+          zIndex: 1050,
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: 12,
+        }}>
           <div className="spinner-border text-primary" style={{ width: 48, height: 48 }} role="status">
             <span className="visually-hidden">Loading…</span>
           </div>
-          <span className="fw-medium text-muted">{busyMsg}</span>
+          <span className="fw-medium text-muted">Loading…</span>
         </div>
       )}
 
       <div className="mb-4">
         <h1 className="fw-semibold fs-4 mb-1">Job board</h1>
-        <p className="text-muted small mb-0">Search across LinkedIn and Dice</p>
+        <p className="text-muted small mb-0">Search across LinkedIn, Dice, Indeed, ZipRecruiter & RemoteOK</p>
       </div>
 
-      {/* search */}
+      {/* Search bar */}
       <div className="card border shadow-sm mb-4">
         <div className="card-body">
           <div className="row g-2 align-items-end">
@@ -252,8 +292,9 @@ export default function JobBoard() {
                 className="form-control"
                 placeholder="e.g. Software Engineer"
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={e => setRole(e.target.value)}
                 onKeyDown={handleKeyDown}
+                disabled={scraping}
               />
             </div>
             <div className="col-12 col-md-4">
@@ -261,10 +302,11 @@ export default function JobBoard() {
               <input
                 type="text"
                 className="form-control"
-                placeholder="e.g. California"
+                placeholder="e.g. Hyderabad"
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={e => setLocation(e.target.value)}
                 onKeyDown={handleKeyDown}
+                disabled={scraping}
               />
             </div>
             <div className="col-12 col-md-3">
@@ -273,22 +315,25 @@ export default function JobBoard() {
                 onClick={handleSearch}
                 disabled={busy}
               >
-                Search
+                {scraping ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"/>
+                    Searching…
+                  </>
+                ) : "Search"}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* toolbar */}
-      <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <span className="text-muted small">
-          {`${sorted.length} job${sorted.length !== 1 ? "s" : ""} found`}
-        </span>
+      {/* Toolbar */}
+      <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+        <ProgressBar count={sorted.length} scraping={scraping} />
         <select
-          className="form-select form-select-sm w-auto"
+          className="form-select form-select-sm w-auto ms-auto"
           value={sort}
-          onChange={(e) => setSort(e.target.value as SortOption)}
+          onChange={e => setSort(e.target.value as SortOption)}
           aria-label="Sort jobs"
         >
           <option value="recent">Most recent</option>
@@ -296,21 +341,19 @@ export default function JobBoard() {
         </select>
       </div>
 
-      {/* error */}
+      {/* Error */}
       {error && (
         <div className="alert alert-danger small py-2" role="alert">{error}</div>
       )}
 
-      {/* empty state */}
+      {/* Empty state */}
       {!busy && !error && sorted.length === 0 && (
-        <p className="text-muted small">
-          No jobs found. Try different keywords and search again.
-        </p>
+        <p className="text-muted small">No jobs found. Try different keywords and search again.</p>
       )}
 
-      {/* grid */}
+      {/* Job grid — no limit, shows all */}
       <div className="row row-cols-1 row-cols-md-2 g-3">
-        {sorted.map((job) => (
+        {sorted.map(job => (
           <div className="col" key={job.id}>
             <JobCard job={job} searchedLocation={searchedLocation} />
           </div>
