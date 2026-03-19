@@ -162,7 +162,7 @@ export default function JobBoard() {
   const pollRef                             = useRef<ReturnType<typeof setInterval> | null>(null);
   const seenIdsRef                          = useRef<Set<string>>(new Set());
 
-  const API_BASE = "http://204.168.170.247";
+  const API_BASE = "https://rx10-jobboard.duckdns.org";
 
   /** Merge new jobs into state, deduplicating by id. */
   const mergeJobs = useCallback((incoming: Job[]) => {
