@@ -3,8 +3,8 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Job Board",
-  description: "Search jobs across LinkedIn and Dice",
+  title: "Socratic.pro",
+  description: "Search jobs across major platforms",
 };
 
 export default function RootLayout({
