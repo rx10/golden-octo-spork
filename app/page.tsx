@@ -162,7 +162,7 @@ export default function JobBoard() {
   const pollRef                             = useRef<ReturnType<typeof setInterval> | null>(null);
   const seenIdsRef                          = useRef<Set<string>>(new Set());
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+  const API_BASE = "http://204.168.170.247";
 
   /** Merge new jobs into state, deduplicating by id. */
   const mergeJobs = useCallback((incoming: Job[]) => {
