@@ -44,10 +44,18 @@ function parseSalaryMin(salary: string | null): number {
   return match ? parseInt(match[0].replace(/,/g, ""), 10) : 0;
 }
 
+function locationMatches(jobLocation: string, searchedLocation: string): boolean {
+  if (!searchedLocation.trim()) return true;
+  return jobLocation.toLowerCase().includes(searchedLocation.trim().toLowerCase());
+}
+
 // ── job card ──────────────────────────────────────────────────────────────────
 
-function JobCard({ job }: { job: Job }) {
+function JobCard({ job, searchedLocation }: { job: Job; searchedLocation: string }) {
   const days = daysSince(job.posted_date);
+  const displayLocation = locationMatches(job.location, searchedLocation)
+    ? job.location
+    : "Remote";
 
   return (
     <div className="card border shadow-sm h-100">
@@ -71,7 +79,7 @@ function JobCard({ job }: { job: Job }) {
             >
               <path d="M8 1a5 5 0 0 0-5 5c0 3.5 5 9 5 9s5-5.5 5-9a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z" />
             </svg>
-            {job.location}
+            {displayLocation}
           </span>
           {job.salary && (
             <span className="badge text-bg-success fw-normal">{job.salary}</span>
@@ -104,14 +112,15 @@ function JobCard({ job }: { job: Job }) {
 // ── main page ─────────────────────────────────────────────────────────────────
 
 export default function JobBoard() {
-  const [jobs, setJobs]         = useState<Job[]>([]);
-  const [busy, setBusy]         = useState<boolean>(false);
-  const [busyMsg, setBusyMsg]   = useState<string>("");
-  const [role, setRole]         = useState<string>("");
-  const [location, setLocation] = useState<string>("");
-  const [sort, setSort]         = useState<SortOption>("recent");
-  const [error, setError]       = useState<string | null>(null);
-  const pollRef                 = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [jobs, setJobs]               = useState<Job[]>([]);
+  const [busy, setBusy]               = useState<boolean>(false);
+  const [busyMsg, setBusyMsg]         = useState<string>("");
+  const [role, setRole]               = useState<string>("");
+  const [location, setLocation]       = useState<string>("");
+  const [searchedLocation, setSearchedLocation] = useState<string>("");
+  const [sort, setSort]               = useState<SortOption>("recent");
+  const [error, setError]             = useState<string | null>(null);
+  const pollRef                       = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -134,7 +143,10 @@ export default function JobBoard() {
     setBusy(true);
     setBusyMsg("Scraping fresh jobs… this may take a minute");
     setError(null);
-    setJobs([]);  // clear old results immediately
+    setJobs([]);
+
+    const submittedLocation = location.trim() || "California";
+    setSearchedLocation(submittedLocation);
 
     try {
       const res = await fetch(`${API_BASE}/api/scrape`, {
@@ -142,7 +154,7 @@ export default function JobBoard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           role:     role.trim()     || "Software Developer",
-          location: location.trim() || "California",
+          location: submittedLocation,
         }),
       });
       if (!res.ok) throw new Error(`Scrape failed: ${res.status}`);
@@ -163,8 +175,6 @@ export default function JobBoard() {
             }
 
             setBusyMsg("Loading results…");
-            // Fetch ALL jobs — DB only has this scrape's results,
-            // no need to filter (would hide Dice Remote jobs)
             const jobsRes = await fetch(`${API_BASE}/api/jobs`);
             if (jobsRes.ok) {
               const data: Job[] = await jobsRes.json();
@@ -302,7 +312,7 @@ export default function JobBoard() {
       <div className="row row-cols-1 row-cols-md-2 g-3">
         {sorted.map((job) => (
           <div className="col" key={job.id}>
-            <JobCard job={job} />
+            <JobCard job={job} searchedLocation={searchedLocation} />
           </div>
         ))}
       </div>
