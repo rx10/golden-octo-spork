@@ -5,9 +5,9 @@ CHANGELOG
 
 ADDED
 -----
-- middleware.ts
-    Proper Next.js middleware export (was proxy.ts with wrong export name).
-    Extended protected routes to include /onboarding, /resumes, /settings.
+- proxy.ts (previously middleware.ts — Next.js 16 uses proxy.ts convention)
+    Proper export name (middleware not proxy). Extended protected routes to
+    include /onboarding, /resumes, /settings.
 
 - lib/api.ts
     Centralized API client. apiRequest() injects Bearer token from session cookie.

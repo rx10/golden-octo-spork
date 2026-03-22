@@ -287,7 +287,7 @@ export default async function ResumeDetailPage({
                 </a>
               )}
 
-              <form action={regenerateResume.bind(null, id)}>
+              <form action={async () => { await regenerateResume(id); }}>
                 <button
                   type="submit"
                   className="w-full flex items-center justify-center gap-2 bg-surface-container text-on-surface py-2.5 rounded-xl text-sm font-headline font-semibold hover:bg-surface-container-high transition-colors border border-outline-variant/20"
@@ -297,7 +297,7 @@ export default async function ResumeDetailPage({
                 </button>
               </form>
 
-              <form action={deleteResume.bind(null, id)}>
+              <form action={async () => { await deleteResume(id); }}>
                 <button
                   type="submit"
                   className="w-full flex items-center justify-center gap-2 text-red-600 hover:bg-red-50 py-2.5 rounded-xl text-sm font-headline font-semibold transition-colors border border-red-200/40"
