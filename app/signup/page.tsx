@@ -1,7 +1,12 @@
-import Image from "next/image";
+"use client";
+
 import Link from "next/link";
+import { useActionState } from "react";
+import { signup } from "@/actions/auth";
 
 export default function SignupPage() {
+  const [state, action, isPending] = useActionState(signup, null);
+
   return (
     <main className="min-h-screen flex flex-col md:flex-row bg-surface text-on-surface selection:bg-primary-container selection:text-on-primary-container">
       <section className="hidden md:flex md:w-1/2 bg-on-background relative overflow-hidden items-center justify-center p-16">
@@ -66,7 +71,7 @@ export default function SignupPage() {
             <p className="font-body text-on-surface-variant mt-2">Welcome to your automated career journey.</p>
           </div>
 
-          <form className="space-y-6">
+          <form action={action} className="space-y-6">
 
             <div className="space-y-2">
               <label className="block font-label text-xs font-bold uppercase tracking-wider text-on-surface-variant" htmlFor="name">
@@ -76,8 +81,10 @@ export default function SignupPage() {
                 type="text"
                 id="name"
                 name="name"
+                disabled={isPending}
                 placeholder="Socrates"
-                className="w-full bg-surface-container-low border-none rounded-md px-4 py-3.5 text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all duration-200 outline-none"
+                required
+                className="w-full bg-surface-container-low border-none rounded-md px-4 py-3.5 text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all duration-200 outline-none disabled:opacity-50"
               />
             </div>
 
@@ -90,8 +97,10 @@ export default function SignupPage() {
                 type="email"
                 id="email"
                 name="email"
+                disabled={isPending}
+                required
                 placeholder="socrates@mail.com"
-                className="w-full bg-surface-container-low border-none rounded-md px-4 py-3.5 text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all duration-200 outline-none"
+                className="w-full bg-surface-container-low border-none rounded-md px-4 py-3.5 text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all duration-200 outline-none disabled:opacity-50"
               />
             </div>
 
@@ -104,18 +113,26 @@ export default function SignupPage() {
                 type="password"
                 id="password"
                 name="password"
+                disabled={isPending}
+                required
                 placeholder="••••••••"
-                className="w-full bg-surface-container-low border-none rounded-md px-4 py-3.5 text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all duration-200 outline-none"
+                className="w-full bg-surface-container-low border-none rounded-md px-4 py-3.5 text-on-surface placeholder:text-outline focus:ring-1 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all duration-200 outline-none disabled:opacity-50"
               />
             </div>
 
+            {state?.error && (
+              <div className="p-3 text-sm text-red-500 bg-red-500/10 rounded-md">
+                {state.error}
+              </div>
+            )}
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-primary to-primary-dim text-on-primary font-headline font-bold py-4 rounded-md shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/20 transform hover:-translate-y-0.5 transition-all duration-200 flex justify-center items-center gap-2"
+              disabled={isPending}
+              className="w-full bg-gradient-to-r from-primary to-primary-dim text-on-primary font-headline font-bold py-4 rounded-md shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/20 transform hover:-translate-y-0.5 transition-all duration-200 flex justify-center items-center gap-2 disabled:opacity-70 disabled:hover:translate-y-0"
             >
-              Create Account
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
+              {isPending ? "Creating..." : "Create Account"}
+              {!isPending && <span className="material-symbols-outlined text-sm">arrow_forward</span>}
             </button>
 
 
