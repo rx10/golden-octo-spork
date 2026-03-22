@@ -7,6 +7,52 @@ const API = "https://api.socratic.pro";
 
 type AuthState = { error: string } | null;
 
+const ALLOWED_DOMAIN = "socratic.pro";
+
+function isAllowedEmail(email: string): boolean {
+  return email.toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`);
+}
+
+export async function signup(
+  prevState: AuthState,
+  formData: FormData
+): Promise<AuthState> {
+  const name = formData.get("name") as string;
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  if (!name || !email || !password) {
+    return { error: "All fields are required." };
+  }
+
+  if (!isAllowedEmail(email)) {
+    return { error: `Registration is restricted to @${ALLOWED_DOMAIN} email addresses.` };
+  }
+
+  try {
+    const res = await fetch(`${API}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ full_name: name, email, password }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      return { error: data.message || data.error || "Registration failed." };
+    }
+
+    const token = data.access_token || data.token;
+    if (!token) return { error: "Registration failed: no token returned." };
+
+    await createSession(token);
+  } catch {
+    return { error: "An error occurred. Please try again." };
+  }
+
+  redirect("/onboarding");
+}
+
 export async function login(
   prevState: AuthState,
   formData: FormData
