@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useActionState } from "react";
+import Link from "next/link";
 import { login, requestOTP, verifyOTP, googleAuth } from "@/actions/auth";
 
 declare global {
@@ -373,6 +374,15 @@ export default function LoginPage() {
               </svg>
               GitHub
             </a>
+          </div>
+
+          <div className="mt-10 text-center">
+            <p className="font-body text-sm text-on-surface-variant">
+              Don&apos;t have an account?{" "}
+              <Link href="/signup" className="text-primary font-bold hover:underline ml-1 transition-all">
+                Sign Up
+              </Link>
+            </p>
           </div>
 
         </div>
