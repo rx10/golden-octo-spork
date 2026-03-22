@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import AppLayout from "@/components/AppLayout";
 import { generateResume } from "@/actions/resume";
+import { listJobs, getJob } from "@/actions/jobs";
+import type { Job } from "@/lib/types";
 
 const TEMPLATES = [
   {
@@ -26,33 +29,64 @@ const TEMPLATES = [
   },
 ];
 
-export default function NewResumePage() {
+function NewResumeContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const preselectedJobId = searchParams.get("job_id") ?? "";
+
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
-  const [jobTitle, setJobTitle] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [jobDescription, setJobDescription] = useState("");
   const [templateId, setTemplateId] = useState("classic");
 
-  const inputClass =
-    "w-full px-3 py-2.5 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-on-surface font-body text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors placeholder:text-on-surface-variant/50";
-  const labelClass = "block text-sm font-medium text-on-surface mb-1.5";
+  // Job selection state
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [jobSearchQuery, setJobSearchQuery] = useState("");
+  const [jobResults, setJobResults] = useState<Job[]>([]);
+  const [jobSearchLoading, setJobSearchLoading] = useState(false);
+  const [showJobDropdown, setShowJobDropdown] = useState(false);
+
+  // Load preselected job on mount
+  useEffect(() => {
+    if (!preselectedJobId) return;
+    getJob(preselectedJobId).then((job) => {
+      if (job) setSelectedJob(job);
+    });
+  }, [preselectedJobId]);
+
+  // Search jobs as user types
+  useEffect(() => {
+    if (!jobSearchQuery.trim() || selectedJob) return;
+    const timer = setTimeout(async () => {
+      setJobSearchLoading(true);
+      const results = await listJobs({ title: jobSearchQuery });
+      setJobResults(results);
+      setJobSearchLoading(false);
+      setShowJobDropdown(true);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [jobSearchQuery, selectedJob]);
+
+  function handleSelectJob(job: Job) {
+    setSelectedJob(job);
+    setShowJobDropdown(false);
+    setJobSearchQuery("");
+  }
+
+  function handleClearJob() {
+    setSelectedJob(null);
+    setJobSearchQuery("");
+    setJobResults([]);
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!jobDescription.trim()) {
-      setError("Please paste the job description.");
+    if (!selectedJob) {
+      setError("Please select a job to generate a resume for.");
       return;
     }
     setError("");
     startTransition(async () => {
-      const result = await generateResume(
-        jobTitle,
-        companyName,
-        jobDescription,
-        templateId
-      );
+      const result = await generateResume(selectedJob.id, templateId);
       if (result.error) {
         setError(result.error);
         return;
@@ -64,6 +98,10 @@ export default function NewResumePage() {
       }
     });
   }
+
+  const inputClass =
+    "w-full px-3 py-2.5 rounded-xl border border-outline-variant/40 bg-surface-container-lowest text-on-surface font-body text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors placeholder:text-on-surface-variant/50";
+  const labelClass = "block text-sm font-medium text-on-surface mb-1.5";
 
   return (
     <AppLayout>
@@ -77,70 +115,100 @@ export default function NewResumePage() {
             <span className="material-symbols-outlined text-[18px]">arrow_back</span>
             Back
           </button>
-          <h1 className="text-2xl font-bold font-headline text-on-surface">
-            Generate Resume
-          </h1>
+          <h1 className="text-2xl font-bold font-headline text-on-surface">Generate Resume</h1>
           <p className="text-sm text-on-surface-variant font-body mt-1">
-            Paste a job description and our AI will tailor your resume to it
+            Select a job and our AI will tailor your resume to it
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Job info */}
+          {/* Job selection */}
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 p-6">
-            <h2 className="font-headline font-semibold text-on-surface mb-4">
-              Job Details
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Job Title</label>
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="Senior Software Engineer"
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Company Name</label>
-                <input
-                  type="text"
-                  className={inputClass}
-                  placeholder="Acme Corp"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                />
-              </div>
-            </div>
-          </div>
+            <h2 className="font-headline font-semibold text-on-surface mb-4">Job</h2>
 
-          {/* Job description */}
-          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 p-6">
-            <h2 className="font-headline font-semibold text-on-surface mb-1">
-              Job Description
-            </h2>
-            <p className="text-xs text-on-surface-variant font-body mb-4">
-              Paste the full job description. The AI uses this to tailor your resume.
-            </p>
-            <textarea
-              className={`${inputClass} resize-none`}
-              rows={12}
-              placeholder="Paste the full job description here..."
-              value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
-              required
-            />
-            <p className="text-xs text-on-surface-variant mt-2">
-              {jobDescription.length} characters
-            </p>
+            {selectedJob ? (
+              <div className="flex items-start justify-between gap-3 p-4 bg-primary-container/20 border border-primary/20 rounded-xl">
+                <div className="flex-1 min-w-0">
+                  <p className="font-headline font-semibold text-on-surface text-sm">
+                    {selectedJob.title}
+                  </p>
+                  <p className="text-xs text-on-surface-variant mt-0.5">
+                    {selectedJob.company_name ?? selectedJob.company}
+                    {selectedJob.location ? ` · ${selectedJob.location}` : ""}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearJob}
+                  className="shrink-0 text-on-surface-variant hover:text-on-surface transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <label className={labelClass}>Search for a job</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    className={inputClass}
+                    placeholder="Search by job title..."
+                    value={jobSearchQuery}
+                    onChange={(e) => {
+                      setJobSearchQuery(e.target.value);
+                      if (!e.target.value.trim()) {
+                        setShowJobDropdown(false);
+                        setJobResults([]);
+                      }
+                    }}
+                    onFocus={() => jobResults.length > 0 && setShowJobDropdown(true)}
+                  />
+                  {jobSearchLoading && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-on-surface-variant animate-spin">
+                      progress_activity
+                    </span>
+                  )}
+                </div>
+
+                {showJobDropdown && jobResults.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-surface-container-lowest border border-outline-variant/30 rounded-xl shadow-lg overflow-hidden">
+                    {jobResults.slice(0, 6).map((job) => (
+                      <button
+                        key={job.id}
+                        type="button"
+                        onClick={() => handleSelectJob(job)}
+                        className="w-full text-left px-4 py-3 hover:bg-surface-container/60 transition-colors border-b border-outline-variant/10 last:border-0"
+                      >
+                        <p className="text-sm font-body font-medium text-on-surface">{job.title}</p>
+                        <p className="text-xs text-on-surface-variant mt-0.5">
+                          {job.company_name ?? job.company}
+                          {job.location ? ` · ${job.location}` : ""}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {showJobDropdown && !jobSearchLoading && jobResults.length === 0 && jobSearchQuery.trim() && (
+                  <div className="mt-2 text-center py-4 text-sm text-on-surface-variant font-body">
+                    No jobs found. Try a different search.
+                  </div>
+                )}
+
+                <p className="mt-2 text-xs text-on-surface-variant font-body">
+                  Or{" "}
+                  <a href="/jobs" className="text-primary hover:underline font-medium">
+                    browse all jobs
+                  </a>{" "}
+                  to find one first.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Template selector */}
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 p-6">
-            <h2 className="font-headline font-semibold text-on-surface mb-4">
-              Resume Template
-            </h2>
+            <h2 className="font-headline font-semibold text-on-surface mb-4">Resume Template</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {TEMPLATES.map((t) => (
                 <button
@@ -167,12 +235,8 @@ export default function NewResumePage() {
                     </span>
                   </div>
                   <div>
-                    <p className="text-sm font-headline font-semibold text-on-surface">
-                      {t.name}
-                    </p>
-                    <p className="text-xs text-on-surface-variant font-body mt-0.5">
-                      {t.description}
-                    </p>
+                    <p className="text-sm font-headline font-semibold text-on-surface">{t.name}</p>
+                    <p className="text-xs text-on-surface-variant font-body mt-0.5">{t.description}</p>
                   </div>
                 </button>
               ))}
@@ -190,14 +254,12 @@ export default function NewResumePage() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={isPending || !jobDescription.trim()}
+            disabled={isPending || !selectedJob}
             className="w-full flex items-center justify-center gap-2 bg-primary text-on-primary py-3.5 rounded-xl text-sm font-headline font-semibold hover:bg-primary-dim transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isPending ? (
               <>
-                <span className="material-symbols-outlined text-[18px] animate-spin">
-                  progress_activity
-                </span>
+                <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
                 Generating your resume...
               </>
             ) : (
@@ -210,11 +272,19 @@ export default function NewResumePage() {
 
           {isPending && (
             <p className="text-center text-xs text-on-surface-variant font-body">
-              AI is tailoring your resume — this takes 5-15 seconds
+              AI is tailoring your resume — this takes 5–15 seconds
             </p>
           )}
         </form>
       </div>
     </AppLayout>
+  );
+}
+
+export default function NewResumePage() {
+  return (
+    <Suspense fallback={null}>
+      <NewResumeContent />
+    </Suspense>
   );
 }

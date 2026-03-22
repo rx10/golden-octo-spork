@@ -7,12 +7,14 @@ const STATUS_COLOR: Record<Resume["status"], string> = {
   draft: "bg-surface-container text-on-surface-variant",
   generated: "bg-primary-container text-primary",
   submitted: "bg-green-100 text-green-700",
+  archived: "bg-surface-container text-outline",
 };
 
 const STATUS_LABEL: Record<Resume["status"], string> = {
   draft: "Draft",
   generated: "Generated",
   submitted: "Submitted",
+  archived: "Archived",
 };
 
 function formatDate(dateStr: string) {

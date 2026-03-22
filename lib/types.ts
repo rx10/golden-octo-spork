@@ -41,6 +41,7 @@ export type ResumeData = {
 
 export type Resume = {
   id: string;
+  job_id?: string;
   job_description_id?: string;
   job_title?: string;
   company_name?: string;
@@ -49,13 +50,14 @@ export type Resume = {
   ats_score?: number;
   template_id: string;
   version: number;
-  status: "draft" | "generated" | "submitted";
+  status: "draft" | "generated" | "submitted" | "archived";
   created_at: string;
 };
 
 export type Application = {
   id: string;
   job_description_id: string;
+  job_id?: string;
   resume_id: string;
   status: "pending" | "submitted" | "viewed" | "interview" | "rejected" | "offer";
   submitted_at?: string;
@@ -72,4 +74,30 @@ export type ApplicationStats = {
   rejected: number;
   offer: number;
   total?: number;
+};
+
+export type Job = {
+  id: string;
+  title: string;
+  company: string;
+  company_name?: string;
+  location?: string;
+  description?: string;
+  source?: string;
+  url?: string;
+  posted_at?: string;
+  scraped_at?: string;
+};
+
+export type BillingStatus = {
+  subscription_tier: "free" | "pro";
+  is_pro: boolean;
+};
+
+export type User = {
+  id: string;
+  email: string;
+  full_name: string;
+  subscription_tier: "free" | "pro";
+  created_at: string;
 };

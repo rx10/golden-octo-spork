@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { decodeJwt } from 'jose';
 
-const protectedRoutes = ['/dashboard', '/onboarding', '/resumes', '/settings'];
+const protectedRoutes = ['/dashboard', '/onboarding', '/resumes', '/settings', '/jobs'];
 const authRoutes = ['/login', '/signup'];
 
 function isSessionValid(cookieValue: string): boolean {

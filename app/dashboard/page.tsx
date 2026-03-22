@@ -1,6 +1,8 @@
 import AppLayout from "@/components/AppLayout";
 import { listApplications, getApplicationStats } from "@/actions/application";
 import { getProfile } from "@/actions/profile";
+import { createSession } from "@/lib/session";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Application, ApplicationStats } from "@/lib/types";
 
@@ -54,7 +56,17 @@ function formatDate(dateStr?: string) {
   });
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ token?: string }>;
+}) {
+  const params = await searchParams;
+  if (params?.token) {
+    await createSession(params.token);
+    redirect("/dashboard");
+  }
+
   const [stats, applications, profile] = await Promise.all([
     getApplicationStats(),
     listApplications(),

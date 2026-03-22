@@ -3,9 +3,10 @@
 import { useState, useEffect, useTransition } from "react";
 import AppLayout from "@/components/AppLayout";
 import { getProfile, updateProfile, updateSkills, updatePreferences } from "@/actions/profile";
-import type { UserProfile } from "@/lib/types";
+import { getBillingStatus, startCheckout, openPortal } from "@/actions/billing";
+import type { UserProfile, BillingStatus } from "@/lib/types";
 
-type Tab = "profile" | "preferences";
+type Tab = "profile" | "preferences" | "billing";
 
 function useProfile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -19,6 +20,20 @@ function useProfile() {
   }, []);
 
   return { profile, loading };
+}
+
+function useBilling() {
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getBillingStatus().then((b) => {
+      setBilling(b);
+      setLoading(false);
+    });
+  }, []);
+
+  return { billing, loading };
 }
 
 const inputClass =
@@ -44,6 +59,7 @@ function Toast({ message, type }: { message: string; type: "success" | "error" }
 
 export default function SettingsPage() {
   const { profile, loading } = useProfile();
+  const { billing, loading: billingLoading } = useBilling();
   const [tab, setTab] = useState<Tab>("profile");
   const [isPending, startTransition] = useTransition();
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
@@ -148,7 +164,7 @@ export default function SettingsPage() {
 
         {/* Tabs */}
         <div className="flex border-b border-outline-variant/20 mb-6 gap-4">
-          {(["profile", "preferences"] as Tab[]).map((t) => (
+          {(["profile", "preferences", "billing"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -158,7 +174,7 @@ export default function SettingsPage() {
                   : "text-on-surface-variant border-transparent hover:text-on-surface"
               }`}
             >
-              {t === "profile" ? "Profile Info" : "Job Preferences"}
+              {t === "profile" ? "Profile Info" : t === "preferences" ? "Job Preferences" : "Billing"}
             </button>
           ))}
         </div>
@@ -277,6 +293,92 @@ export default function SettingsPage() {
                     {isPending ? "Saving…" : "Update Skills"}
                   </button>
                 </form>
+              </div>
+            )}
+
+            {/* Billing tab */}
+            {tab === "billing" && (
+              <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 p-6">
+                <h2 className="font-headline font-semibold text-on-surface mb-1">Billing & Subscription</h2>
+                <p className="text-xs text-on-surface-variant font-body mb-6">Manage your plan and payment details.</p>
+
+                {billingLoading ? (
+                  <div className="py-8 flex justify-center">
+                    <span className="material-symbols-outlined text-[32px] text-outline-variant animate-spin">progress_activity</span>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Current plan */}
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-outline-variant/20 bg-surface-container/40">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${billing?.is_pro ? "bg-amber-100" : "bg-surface-container"}`}>
+                          <span className={`material-symbols-outlined text-[20px] ${billing?.is_pro ? "text-amber-600" : "text-on-surface-variant"}`}>
+                            {billing?.is_pro ? "workspace_premium" : "person"}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-headline font-semibold text-on-surface">
+                            {billing?.is_pro ? "Pro" : "Free"} Plan
+                          </p>
+                          <p className="text-xs text-on-surface-variant font-body mt-0.5">
+                            {billing?.is_pro
+                              ? "Full access to all features"
+                              : "Limited resume generations per month"}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium font-body ${
+                        billing?.is_pro
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-surface-container text-on-surface-variant"
+                      }`}>
+                        {billing?.subscription_tier ?? "free"}
+                      </span>
+                    </div>
+
+                    {billing?.is_pro ? (
+                      <form action={openPortal}>
+                        <button
+                          type="submit"
+                          disabled={isPending}
+                          className="flex items-center gap-2 bg-surface-container text-on-surface px-5 py-2.5 rounded-xl text-sm font-headline font-semibold hover:bg-surface-container-low transition-colors disabled:opacity-60"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">manage_accounts</span>
+                          Manage Subscription
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="p-4 rounded-xl border border-primary/20 bg-primary-container/20 space-y-2">
+                          <p className="text-sm font-headline font-semibold text-on-surface">Upgrade to Pro</p>
+                          <ul className="space-y-1">
+                            {[
+                              "Unlimited AI resume generations",
+                              "Priority processing",
+                              "Advanced ATS optimization",
+                              "Auto-apply to matched jobs",
+                            ].map((feat) => (
+                              <li key={feat} className="flex items-center gap-2 text-xs text-on-surface-variant font-body">
+                                <span className="material-symbols-outlined text-primary text-[14px]">check_circle</span>
+                                {feat}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <form action={startCheckout}>
+                          <button
+                            type="submit"
+                            disabled={isPending}
+                            className="flex items-center gap-2 bg-primary text-on-primary px-5 py-2.5 rounded-xl text-sm font-headline font-semibold hover:bg-primary-dim transition-colors disabled:opacity-60"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+                            Upgrade to Pro
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

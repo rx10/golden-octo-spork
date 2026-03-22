@@ -6,6 +6,7 @@ import { logout } from "@/actions/auth";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { href: "/jobs", label: "Jobs", icon: "work" },
   { href: "/resumes", label: "Resumes", icon: "description" },
   { href: "/settings", label: "Settings", icon: "settings" },
 ];
