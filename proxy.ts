@@ -17,7 +17,7 @@ function isSessionValid(cookieValue: string): boolean {
   }
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   const isProtectedRoute = protectedRoutes.some((route) => path.startsWith(route));
