@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function LandingBody() {
   return (
     <main>
@@ -15,10 +17,10 @@ export default function LandingBody() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <button className="editorial-gradient text-on-primary px-8 py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-on-surface/5">
+              <Link href="/signup" className="editorial-gradient text-on-primary px-8 py-4 rounded-xl text-base font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-on-surface/5">
                 Start My Automated Search
                 <span className="material-symbols-outlined">arrow_forward</span>
-              </button>
+              </Link>
 
               <button className="bg-surface-container-high text-on-surface px-8 py-4 rounded-xl text-base font-bold hover:bg-surface-container-highest transition-colors">
                 Watch the Demo
@@ -278,9 +280,9 @@ export default function LandingBody() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-surface-container-lowest text-on-background px-10 py-5 rounded-xl font-bold text-lg hover:scale-95 transition-transform duration-200">
+              <Link href="/signup" className="bg-surface-container-lowest text-on-background px-10 py-5 rounded-xl font-bold text-lg hover:scale-95 transition-transform duration-200">
                 Get Started Free
-              </button>
+              </Link>
 
               <button className="border border-on-primary/30 text-on-primary px-10 py-5 rounded-xl font-bold text-lg hover:bg-on-primary/10 transition-colors">
                 View Pricing Plans
