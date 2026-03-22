@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useActionState } from "react";
+import Link from "next/link";
 import { login, requestOTP, verifyOTP, googleAuth } from "@/actions/auth";
 
 declare global {
@@ -241,7 +242,6 @@ function PasswordForm() {
 }
 
 function GoogleButton() {
-  const [isGoogleReady, setIsGoogleReady] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -262,19 +262,9 @@ function GoogleButton() {
             if (result && "error" in result && result.error) {
               setError(result.error);
             }
-            // On success, googleAuth redirects to /dashboard
           });
         },
       });
-      const el = document.getElementById("google-gsi-button");
-      if (el) {
-        window.google?.accounts.id.renderButton(el, {
-          theme: "outline",
-          size: "large",
-          width: 400,
-        });
-      }
-      setIsGoogleReady(true);
     };
     document.head.appendChild(script);
     return () => {
@@ -282,17 +272,9 @@ function GoogleButton() {
     };
   }, [clientId]);
 
-  if (!clientId) {
-    return (
-      <button
-        type="button"
-        disabled
-        className="w-full flex items-center justify-center gap-3 bg-surface-container-lowest border border-outline-variant/20 text-on-surface-variant font-body font-medium py-3.5 rounded-md opacity-50 cursor-not-allowed"
-      >
-        <GoogleIcon />
-        Google (not configured)
-      </button>
-    );
+  function handleClick() {
+    if (!clientId) return;
+    window.google?.accounts.id.prompt();
   }
 
   return (
@@ -304,10 +286,14 @@ function GoogleButton() {
           Signing in with Google...
         </div>
       ) : (
-        <div
-          id="google-gsi-button"
-          className={`w-full flex justify-center ${!isGoogleReady ? "opacity-0 h-12" : ""}`}
-        />
+        <button
+          type="button"
+          onClick={handleClick}
+          className="w-full flex items-center justify-center gap-3 bg-surface-container-lowest border border-outline-variant/20 text-on-surface font-body font-medium py-3.5 rounded-md hover:bg-surface-container-low transition-colors duration-200"
+        >
+          <GoogleIcon />
+          Google
+        </button>
       )}
     </div>
   );
@@ -388,6 +374,15 @@ export default function LoginPage() {
               </svg>
               GitHub
             </a>
+          </div>
+
+          <div className="mt-10 text-center">
+            <p className="font-body text-sm text-on-surface-variant">
+              Don&apos;t have an account?{" "}
+              <Link href="/signup" className="text-primary font-bold hover:underline ml-1 transition-all">
+                Sign Up
+              </Link>
+            </p>
           </div>
 
         </div>
