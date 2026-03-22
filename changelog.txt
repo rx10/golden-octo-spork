@@ -1,0 +1,76 @@
+CHANGELOG
+=========
+
+[2026-03-23] - Frontend Application Build (auth branch)
+
+ADDED
+-----
+- proxy.ts (previously middleware.ts — Next.js 16 uses proxy.ts convention)
+    Proper export name (middleware not proxy). Extended protected routes to
+    include /onboarding, /resumes, /settings.
+
+- lib/api.ts
+    Centralized API client. apiRequest() injects Bearer token from session cookie.
+    extractData() handles both { data: ... } envelope and bare JSON responses.
+
+- lib/types.ts
+    Shared TypeScript types: UserProfile, WorkExperience, Education, Resume,
+    ResumeData, Application, ApplicationStats.
+
+- actions/profile.ts
+    Server actions: getProfile, updateProfile, updateSkills, updatePreferences.
+    All endpoints: GET/PUT /api/v1/profile, PATCH /api/v1/profile/skills,
+    PUT /api/v1/profile/preferences.
+
+- actions/resume.ts
+    Server actions: listResumes, getResume, generateResume, regenerateResume,
+    deleteResume.
+    Endpoints: GET/POST /api/v1/resumes, GET/PUT/DELETE /api/v1/resumes/{id},
+    POST /api/v1/resumes/{id}/regenerate.
+
+- actions/application.ts
+    Server actions: listApplications, getApplicationStats, updateApplicationStatus.
+    Endpoints: GET /api/v1/applications, GET /api/v1/applications/stats,
+    PATCH /api/v1/applications/{id}/status.
+
+- components/Sidebar.tsx
+    Responsive sidebar navigation. Desktop: fixed 240px left rail with logo, nav
+    items, and sign out. Mobile: horizontal top bar. Active route highlighting
+    via usePathname().
+
+- components/AppLayout.tsx
+    Authenticated page wrapper. Composes Sidebar + main content area.
+
+- app/onboarding/page.tsx
+    4-step profile wizard (client component). Steps: Personal Info, Education,
+    Work Experience, Skills & Preferences. Progress bar. Calls updateProfile()
+    server action on completion and redirects to /dashboard.
+
+- app/resumes/page.tsx
+    Resume library grid. Shows ATS score badge, status badge, template, version,
+    and date per card. Empty state with CTA. "Generate New" button.
+
+- app/resumes/new/page.tsx
+    Resume builder (client component). Inputs: job title, company, job description
+    textarea, template selector (Classic/Modern/Compact). Calls generateResume()
+    and redirects to /resumes/[id] on success.
+
+- app/resumes/[id]/page.tsx
+    Resume detail page (server component). Renders formatted resume preview from
+    resume_data JSON. ATS circular gauge. Download PDF, Regenerate, Delete actions.
+
+- app/settings/page.tsx
+    Tabbed settings page (client component). Profile Info tab: phone, location,
+    LinkedIn, portfolio, skills with live tag preview. Job Preferences tab: target
+    roles, locations, salary, auto-apply toggle. Toast notifications on save.
+
+MODIFIED
+--------
+- app/dashboard/page.tsx
+    Full rewrite. Server component fetching stats and applications in parallel.
+    Stats row: Submitted, Viewed, Interviews, Offers. Applications table with
+    status badges. "Complete your profile" banner for new users. Empty state CTA.
+
+- actions/auth.ts
+    signup() now redirects to /onboarding instead of /dashboard so new users
+    complete their profile before reaching the dashboard.

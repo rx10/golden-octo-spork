@@ -3,9 +3,14 @@
 import { createSession, deleteSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 
+const API = "https://api.socratic.pro";
+
 type AuthState = { error: string } | null;
 
-export async function login(prevState: AuthState, formData: FormData): Promise<AuthState> {
+export async function login(
+  prevState: AuthState,
+  formData: FormData
+): Promise<AuthState> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
@@ -14,7 +19,7 @@ export async function login(prevState: AuthState, formData: FormData): Promise<A
   }
 
   try {
-    const res = await fetch("https://api.socratic.pro/api/auth/login", {
+    const res = await fetch(`${API}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -26,60 +31,81 @@ export async function login(prevState: AuthState, formData: FormData): Promise<A
       return { error: data.message || data.error || "Invalid credentials." };
     }
 
-    const token = data.token || data.access_token;
-
-    if (!token) {
-      return { error: "Login failed: No token returned from server." };
-    }
+    const token = data.access_token || data.token;
+    if (!token) return { error: "Login failed: no token returned." };
 
     await createSession(token);
-  } catch (error) {
-    return { error: "An error occurred during login. Please try again." };
+  } catch {
+    return { error: "An error occurred. Please try again." };
   }
 
   redirect("/dashboard");
 }
 
-export async function signup(prevState: AuthState, formData: FormData): Promise<AuthState> {
-  const name = formData.get("name") as string;
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  if (!name || !email || !password) {
-    return { error: "All fields are required." };
-  }
-
-  let hasToken = false;
-
+export async function requestOTP(
+  email: string
+): Promise<{ error?: string } | null> {
   try {
-    const res = await fetch("https://api.socratic.pro/api/auth/signup", {
+    const res = await fetch(`${API}/api/auth/otp/request`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password }),
+      body: JSON.stringify({ email }),
     });
-
     const data = await res.json();
-
     if (!res.ok) {
-      return { error: data.message || data.error || "Signup failed." };
+      return { error: data.message || data.error || "Failed to send OTP." };
     }
+    return null;
+  } catch {
+    return { error: "Failed to send OTP. Please try again." };
+  }
+}
 
-    const token = data.token || data.access_token;
-    if (token) {
-      await createSession(token);
-      hasToken = true;
+export async function verifyOTP(
+  email: string,
+  code: string
+): Promise<{ error?: string } | void> {
+  try {
+    const res = await fetch(`${API}/api/auth/otp/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { error: data.message || data.error || "Invalid or expired code." };
     }
-  } catch (error) {
-    return { error: "An error occurred during signup. Please try again." };
+    const token = data.access_token || data.token;
+    if (!token) return { error: "Verification failed: no token returned." };
+    await createSession(token);
+  } catch {
+    return { error: "Verification failed. Please try again." };
   }
 
-  // Redirects are OUTSIDE the try/catch because Next.js redirect() throws
-  // a special error internally that would be swallowed by catch.
-  if (hasToken) {
-    redirect("/dashboard");
-  } else {
-    redirect("/login");
+  redirect("/dashboard");
+}
+
+export async function googleAuth(
+  idToken: string
+): Promise<{ error?: string } | void> {
+  try {
+    const res = await fetch(`${API}/api/auth/oauth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id_token: idToken }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { error: data.message || data.error || "Google sign-in failed." };
+    }
+    const token = data.access_token || data.token;
+    if (!token) return { error: "Google sign-in failed: no token returned." };
+    await createSession(token);
+  } catch {
+    return { error: "Google sign-in failed. Please try again." };
   }
+
+  redirect("/dashboard");
 }
 
 export async function logout() {
