@@ -76,7 +76,7 @@ export async function signup(prevState: AuthState, formData: FormData): Promise<
   // Redirects are OUTSIDE the try/catch because Next.js redirect() throws
   // a special error internally that would be swallowed by catch.
   if (hasToken) {
-    redirect("/dashboard");
+    redirect("/onboarding");
   } else {
     redirect("/login");
   }
