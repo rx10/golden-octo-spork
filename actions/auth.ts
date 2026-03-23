@@ -30,7 +30,7 @@ export async function signup(
   }
 
   try {
-    const res = await fetch(`${API}/api/auth/register`, {
+    const res = await fetch(`${API}/api/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ full_name: name, email, password }),
