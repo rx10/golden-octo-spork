@@ -93,7 +93,7 @@ function ResumePreview({ data }: { data: ResumeData }) {
                     {exp.start_date} — {exp.end_date}
                   </span>
                 </div>
-                {exp.bullets.length > 0 && (
+                {exp.bullets && exp.bullets.length > 0 && (
                   <ul className="mt-2 space-y-1">
                     {exp.bullets.map((b, bi) => (
                       <li key={bi} className="flex items-start gap-2 text-xs">
