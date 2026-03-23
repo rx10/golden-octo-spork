@@ -125,7 +125,7 @@ function ResumePreview({ data }: { data: ResumeData }) {
                     {edu.gpa ? ` · GPA ${edu.gpa}` : ""}
                   </p>
                 </div>
-                <span className="text-xs text-on-surface-variant">{edu.grad_year}</span>
+                <span className="text-xs text-on-surface-variant">{edu.year}</span>
               </div>
             ))}
           </div>

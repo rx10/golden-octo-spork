@@ -14,6 +14,14 @@ export type Education = {
   gpa?: string;
 };
 
+export type ResumeEducation = {
+  school: string;
+  degree: string;
+  field: string;
+  year: string;
+  gpa?: string;
+};
+
 export type UserProfile = {
   professional_summary?: string;
   education: Education[];
@@ -34,7 +42,7 @@ export type UserProfile = {
 export type ResumeData = {
   professional_summary?: string;
   work_experience?: WorkExperience[];
-  education?: Education[];
+  education?: ResumeEducation[];
   skills?: { technical?: string[]; soft?: string[] };
   certifications?: string[];
 };
