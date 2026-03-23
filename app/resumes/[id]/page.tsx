@@ -1,8 +1,9 @@
 import AppLayout from "@/components/AppLayout";
-import { getResume, regenerateResume, deleteResume } from "@/actions/resume";
+import { getResume, regenerateResume } from "@/actions/resume";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { ResumeData } from "@/lib/types";
+import DeleteResumeButton from "./DeleteResumeButton";
 
 const STATUS_COLOR: Record<string, string> = {
   draft: "bg-surface-container text-on-surface-variant",
@@ -288,7 +289,7 @@ export default async function ResumeDetailPage({
                 </a>
               )}
 
-              <form action={async () => { await regenerateResume(id); }}>
+              <form action={async () => { "use server"; await regenerateResume(id); }}>
                 <button
                   type="submit"
                   className="w-full flex items-center justify-center gap-2 bg-surface-container text-on-surface py-2.5 rounded-xl text-sm font-headline font-semibold hover:bg-surface-container-high transition-colors border border-outline-variant/20"
@@ -298,18 +299,7 @@ export default async function ResumeDetailPage({
                 </button>
               </form>
 
-              <form action={async () => { await deleteResume(id); }}>
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center gap-2 text-red-600 hover:bg-red-50 py-2.5 rounded-xl text-sm font-headline font-semibold transition-colors border border-red-200/40"
-                  onClick={(e) => {
-                    if (!confirm("Delete this resume?")) e.preventDefault();
-                  }}
-                >
-                  <span className="material-symbols-outlined text-[18px]">delete</span>
-                  Delete
-                </button>
-              </form>
+              <DeleteResumeButton id={id} />
             </div>
           </div>
         </div>
