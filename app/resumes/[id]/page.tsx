@@ -277,17 +277,13 @@ export default async function ResumeDetailPage({
 
             {/* Actions */}
             <div className="space-y-2">
-              {resume.pdf_url && (
-                <a
-                  href={resume.pdf_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 bg-primary text-on-primary py-2.5 rounded-xl text-sm font-headline font-semibold hover:bg-primary-dim transition-colors"
-                >
-                  <span className="material-symbols-outlined text-[18px]">download</span>
-                  Download PDF
-                </a>
-              )}
+              <a
+                href={`/api/resumes/${resume.id}/pdf`}
+                className="w-full flex items-center justify-center gap-2 bg-primary text-on-primary py-2.5 rounded-xl text-sm font-headline font-semibold hover:bg-primary-dim transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">download</span>
+                Download PDF
+              </a>
 
               <form action={async () => { "use server"; await regenerateResume(id); }}>
                 <button
