@@ -162,7 +162,7 @@ export default function LandingBody() {
 
               <div className="bg-surface-container-lowest p-6 sm:p-10 rounded-[1.5rem] sm:rounded-3xl group hover:shadow-xl transition-all duration-500">
                 <div className="w-16 h-16 rounded-2xl bg-tertiary-fixed flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
-                  <span className="material-symbols-outlined text-tertiary text-3xl">query_stats</span>
+                  <span className="material-symbols-outlined text-on-tertiary-container text-3xl">query_stats</span>
                 </div>
                 <h3 className="text-2xl font-bold font-headline mb-4 text-on-surface">ATS Score Prediction</h3>
                 <p className="text-on-surface-variant leading-relaxed">A real-time scoring engine tells you exactly how your resume will perform against each ATS — before it&apos;s ever submitted.</p>
@@ -186,7 +186,7 @@ export default function LandingBody() {
 
               <div className="bg-surface-container-lowest p-6 sm:p-10 rounded-[1.5rem] sm:rounded-3xl group hover:shadow-xl transition-all duration-500">
                 <div className="w-16 h-16 rounded-2xl bg-tertiary-fixed flex items-center justify-center mb-8 group-hover:scale-110 transition-transform">
-                  <span className="material-symbols-outlined text-tertiary text-3xl">lock</span>
+                  <span className="material-symbols-outlined text-on-tertiary-container text-3xl">lock</span>
                 </div>
                 <h3 className="text-2xl font-bold font-headline mb-4 text-on-surface">Privacy-First</h3>
                 <p className="text-on-surface-variant leading-relaxed">Your data is encrypted at rest and in transit. We never sell or share your information with third-party recruiters or data brokers.</p>
