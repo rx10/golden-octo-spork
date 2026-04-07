@@ -36,49 +36,73 @@ export async function getResume(id: string): Promise<Resume | null> {
 }
 
 /**
- * Creates a new resume linked to a job, then triggers AI generation.
- * Returns the new resume ID on success.
+ * Generates a resume by sending the user's profile + raw job description
+ * to the backend in a single request. The backend calls Claude, stores the
+ * result, and returns the created resume.
  */
 export async function generateResume(
-  jobId: string,
+  jobDescription: string,
   templateId: string = "classic"
 ): Promise<{ id?: string; error?: string }> {
   try {
     const token = await getToken();
 
-    // Step 1: create the resume record linked to job
-    const createRes = await apiRequest(
-      "/api/v1/resumes",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          job_id: jobId,
-          template_id: templateId,
-          resume_data: null,
-        }),
+    // Fetch user profile to send inline
+    const profileRes = await apiRequest("/api/v1/profile", {}, token);
+    if (!profileRes.ok) {
+      return { error: "Could not load your profile. Please complete your profile first." };
+    }
+    const profile = await extractData<{
+      phone?: string;
+      location?: string;
+      linkedin_url?: string;
+      portfolio_url?: string;
+      work_experience: { company: string; title: string; start_date: string; end_date: string; bullets: string[] }[];
+      education: { school: string; degree: string; field: string; grad_year: string }[];
+      skills: string[];
+      certifications: string[];
+    }>(profileRes);
+
+    const body = {
+      profile: {
+        personal: {
+          email: "",
+          phone: profile.phone ?? "",
+          location: profile.location ?? "",
+          linkedin_url: profile.linkedin_url ?? "",
+          portfolio_url: profile.portfolio_url ?? "",
+        },
+        work_experience: (profile.work_experience ?? []).map((exp) => ({
+          company: exp.company,
+          title: exp.title,
+          start_date: exp.start_date,
+          end_date: exp.end_date,
+          bullets: exp.bullets,
+        })),
+        education: (profile.education ?? []).map((edu) => ({
+          school: edu.school,
+          degree: edu.degree,
+          field: edu.field,
+          year: edu.grad_year,
+        })),
+        skills: profile.skills ?? [],
+        certifications: profile.certifications ?? [],
       },
+      job_description: jobDescription,
+      template_id: templateId,
+    };
+
+    const res = await apiRequest(
+      "/api/v1/resumes/generate",
+      { method: "POST", body: JSON.stringify(body) },
       token
     );
-    if (!createRes.ok) {
-      const err = await createRes.json().catch(() => ({}));
-      return { error: err.message || err.error || "Failed to create resume." };
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      return { error: err.message || err.error || "Failed to generate resume." };
     }
-    const created = await extractData<{ id: string; resume_id?: string }>(createRes);
-    const resumeId = created.id || created.resume_id;
-    if (!resumeId) return { error: "No resume ID returned." };
-
-    // Step 2: trigger AI regeneration
-    const regenRes = await apiRequest(
-      `/api/v1/resumes/${resumeId}/regenerate`,
-      { method: "POST" },
-      token
-    );
-    if (!regenRes.ok) {
-      // Resume was created but AI failed — still return the ID so user can retry
-      return { id: resumeId, error: "Resume created but AI generation failed. You can regenerate from the resume page." };
-    }
-
-    return { id: resumeId };
+    const resume = await extractData<{ id: string }>(res);
+    return { id: resume.id };
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Failed to generate resume." };
   }

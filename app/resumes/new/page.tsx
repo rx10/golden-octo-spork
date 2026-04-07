@@ -45,11 +45,17 @@ function NewResumeContent() {
   const [jobSearchLoading, setJobSearchLoading] = useState(false);
   const [showJobDropdown, setShowJobDropdown] = useState(false);
 
+  // Job description text
+  const [jdText, setJdText] = useState("");
+
   // Load preselected job on mount
   useEffect(() => {
     if (!preselectedJobId) return;
     getJob(preselectedJobId).then((job) => {
-      if (job) setSelectedJob(job);
+      if (job) {
+        setSelectedJob(job);
+        if (job.description) setJdText(job.description);
+      }
     });
   }, [preselectedJobId]);
 
@@ -70,23 +76,25 @@ function NewResumeContent() {
     setSelectedJob(job);
     setShowJobDropdown(false);
     setJobSearchQuery("");
+    if (job.description) setJdText(job.description);
   }
 
   function handleClearJob() {
     setSelectedJob(null);
     setJobSearchQuery("");
     setJobResults([]);
+    setJdText("");
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedJob) {
-      setError("Please select a job to generate a resume for.");
+    if (!jdText.trim()) {
+      setError("Please paste a job description.");
       return;
     }
     setError("");
     startTransition(async () => {
-      const result = await generateResume(selectedJob.id, templateId);
+      const result = await generateResume(jdText.trim(), templateId);
       if (result.error) {
         setError(result.error);
         return;
@@ -117,14 +125,17 @@ function NewResumeContent() {
           </button>
           <h1 className="text-2xl font-bold font-headline text-on-surface">Generate Resume</h1>
           <p className="text-sm text-on-surface-variant font-body mt-1">
-            Select a job and our AI will tailor your resume to it
+            Paste a job description and our AI will tailor your resume to it
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Job selection */}
+          {/* Job search (optional — pre-fills description) */}
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 p-6">
-            <h2 className="font-headline font-semibold text-on-surface mb-4">Job</h2>
+            <h2 className="font-headline font-semibold text-on-surface mb-1">Job</h2>
+            <p className="text-xs text-on-surface-variant font-body mb-4">
+              Search to auto-fill the description below, or skip and paste it manually.
+            </p>
 
             {selectedJob ? (
               <div className="flex items-start justify-between gap-3 p-4 bg-primary-container/20 border border-primary/20 rounded-xl">
@@ -136,6 +147,11 @@ function NewResumeContent() {
                     {selectedJob.company_name ?? selectedJob.company}
                     {selectedJob.location ? ` · ${selectedJob.location}` : ""}
                   </p>
+                  {!selectedJob.description && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      No description available — paste one below.
+                    </p>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -206,6 +222,27 @@ function NewResumeContent() {
             )}
           </div>
 
+          {/* Job description textarea */}
+          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 p-6">
+            <label className="font-headline font-semibold text-on-surface block mb-1">
+              Job Description <span className="text-red-500">*</span>
+            </label>
+            <p className="text-xs text-on-surface-variant font-body mb-3">
+              Paste the full job description. The AI uses this to tailor every bullet point and skill.
+            </p>
+            <textarea
+              className={`${inputClass} min-h-[200px] resize-y`}
+              placeholder="Paste the job description here..."
+              value={jdText}
+              onChange={(e) => setJdText(e.target.value)}
+            />
+            {jdText.trim().length > 0 && (
+              <p className="text-xs text-on-surface-variant mt-1.5">
+                {jdText.trim().length} characters
+              </p>
+            )}
+          </div>
+
           {/* Template selector */}
           <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 p-6">
             <h2 className="font-headline font-semibold text-on-surface mb-4">Resume Template</h2>
@@ -254,7 +291,7 @@ function NewResumeContent() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={isPending || !selectedJob}
+            disabled={isPending || !jdText.trim()}
             className="w-full flex items-center justify-center gap-2 bg-primary text-on-primary py-3.5 rounded-xl text-sm font-headline font-semibold hover:bg-primary-dim transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isPending ? (
