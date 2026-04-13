@@ -47,8 +47,11 @@ export async function generateResume(
   try {
     const token = await getToken();
 
-    // Fetch user profile to send inline
-    const profileRes = await apiRequest("/api/v1/profile", {}, token);
+    // Fetch user info and profile in parallel
+    const [profileRes, meRes] = await Promise.all([
+      apiRequest("/api/v1/profile", {}, token),
+      apiRequest("/api/auth/me", {}, token),
+    ]);
     if (!profileRes.ok) {
       return { error: "Could not load your profile. Please complete your profile first." };
     }
@@ -62,11 +65,15 @@ export async function generateResume(
       skills: string[];
       certifications: string[];
     }>(profileRes);
+    const me = meRes.ok
+      ? await extractData<{ full_name?: string; email?: string }>(meRes)
+      : { full_name: undefined, email: undefined };
 
     const body = {
       profile: {
         personal: {
-          email: "",
+          full_name: me.full_name ?? "",
+          email: me.email ?? "",
           phone: profile.phone ?? "",
           location: profile.location ?? "",
           linkedin_url: profile.linkedin_url ?? "",
