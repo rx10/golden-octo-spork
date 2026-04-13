@@ -63,7 +63,7 @@ function ATSGauge({ score }: { score: number }) {
 
 function ResumePreview({ data }: { data: ResumeData }) {
   return (
-    <div className="bg-white rounded-xl border border-outline-variant/20 p-8 font-body text-sm text-on-surface space-y-5">
+    <div className="bg-grey rounded-xl border border-outline-variant/20 p-8 font-body text-sm text-on-surface space-y-5">
       {/* Professional Summary */}
       {data.professional_summary && (
         <section>
